@@ -1,0 +1,21 @@
+# Backend specific gitignore
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite3
+agrishield.db
+krishisetu.db
+
+# Generated audio
+app/static/audio/*.mp3
+app/static/audio/*.wav
+app/static/audio/*.ogg
+
+# Bytecode & Caches
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.pytest_cache/

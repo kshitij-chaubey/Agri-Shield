@@ -1,0 +1,24 @@
+{
+  "name": "krishisetu-odisha",
+  "version": "1.0.0",
+  "description": "Cyclone & Flood-Resilient Smart Agriculture Advisory System for Coastal Odisha",
+  "scripts": {
+    "dev": "npm run dev:frontend",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && python run.py",
+    "build": "cd frontend && npm run build"
+  },
+  "keywords": [
+    "agritech",
+    "odisha",
+    "cyclone-warning",
+    "disaster-management",
+    "gemini-ai",
+    "ivr",
+    "twilio",
+    "fastapi",
+    "nextjs"
+  ],
+  "author": "KrishiSetu Team",
+  "license": "MIT"
+}

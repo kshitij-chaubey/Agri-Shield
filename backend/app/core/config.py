@@ -25,10 +25,10 @@ class Settings(BaseSettings):
     MOCK_TELEPHONY: bool = True
     
     # Public Base URL for Twilio Webhooks & Audio streaming
-    PUBLIC_BASE_URL: str = "http://localhost:8000"
+    PUBLIC_BASE_URL: str = os.getenv("PUBLIC_BASE_URL", "http://localhost:8000")
     
-    # Database
-    DATABASE_URL: str = f"sqlite:///{BASE_DIR}/agrishield.db"
+    # Database (Default to local SQLite, handles postgresql:// dialect fix if deployed on Render/Railway)
+    DATABASE_URL: str = os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/agrishield.db")
     
     model_config = SettingsConfigDict(
         env_file=str(BASE_DIR / ".env"),
@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     )
 
 settings = Settings()
+
+# Fix Heroku / Render legacy postgres:// uri schema for SQLAlchemy 2.0
+if settings.DATABASE_URL.startswith("postgres://"):
+    settings.DATABASE_URL = settings.DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 if settings.TWILIO_ACCOUNT_SID and settings.TWILIO_AUTH_TOKEN and settings.TWILIO_PHONE_NUMBER:
     pass

@@ -4,8 +4,9 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 
-from app.database.session import get_db, init_db, engine
-from app.database.models import Farmer, Base
+from app.database.session import get_db, init_db
+from app.database.models import Farmer
+from app.services.weather_service import AGRICULTURAL_REGIONS
 
 router = APIRouter(prefix="/farmers", tags=["Farmers"])
 
@@ -16,7 +17,7 @@ class FarmerCreate(BaseModel):
     crop_type: str
     crop_stage: str
     soil_type: str
-    language: str = "or"
+    language: str = "hi"
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
@@ -40,16 +41,16 @@ class FarmerResponse(BaseModel):
     crop_stage: str
     soil_type: str
     language: str
-    latitude: Optional[float]
-    longitude: Optional[float]
-    created_at: datetime
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
 
 @router.get("", response_model=List[FarmerResponse])
 def get_all_farmers(district: Optional[str] = None, db: Session = Depends(get_db)):
-    """Retrieve all registered Odisha farmers, optionally filtered by district"""
+    """Retrieve all registered farmers, optionally filtered by district"""
     query = db.query(Farmer)
     if district:
         query = query.filter(Farmer.district.ilike(f"%{district}%"))
@@ -65,7 +66,19 @@ def get_farmer_by_id(farmer_id: int, db: Session = Depends(get_db)):
 
 @router.post("", response_model=FarmerResponse)
 def create_farmer(payload: FarmerCreate, db: Session = Depends(get_db)):
-    """Register a new farmer (e.g. Hackathon Judge test profile)"""
+    """Register a new farmer (e.g. Judge / Evaluator live test profile)"""
+    # Auto-resolve coordinates based on target agricultural district if omitted
+    lat = payload.latitude
+    lng = payload.longitude
+    
+    if lat is None or lng is None:
+        region_data = AGRICULTURAL_REGIONS.get(payload.district)
+        if not region_data:
+            match = next((v for k, v in AGRICULTURAL_REGIONS.items() if k.lower() in payload.district.lower()), None)
+            region_data = match or AGRICULTURAL_REGIONS["Nashik"]
+        lat = region_data["lat"]
+        lng = region_data["lng"]
+
     new_farmer = Farmer(
         name=payload.name,
         phone=payload.phone,
@@ -73,9 +86,10 @@ def create_farmer(payload: FarmerCreate, db: Session = Depends(get_db)):
         crop_type=payload.crop_type,
         crop_stage=payload.crop_stage,
         soil_type=payload.soil_type,
-        language=payload.language,
-        latitude=payload.latitude or 19.8135,
-        longitude=payload.longitude or 85.8312
+        language=payload.language or "hi",
+        latitude=lat,
+        longitude=lng,
+        created_at=datetime.utcnow()
     )
     db.add(new_farmer)
     db.commit()
@@ -103,15 +117,17 @@ def delete_farmer(farmer_id: int, db: Session = Depends(get_db)):
     if not farmer:
         raise HTTPException(status_code=404, detail="Farmer not found")
     
+    farmer_name = farmer.name
     db.delete(farmer)
     db.commit()
-    return {"message": f"Farmer {farmer.name} deleted successfully"}
+    return {"message": f"Farmer {farmer_name} deleted successfully"}
 
+@router.post("/seed/reset")
 @router.post("/reset-seeds")
 def reset_seed_farmers(db: Session = Depends(get_db)):
-    """Reset database to the standard 6 coastal Odisha seed farmers"""
+    """Reset and re-populate database with default pan-regional agricultural seed farmers"""
     db.query(Farmer).delete()
     db.commit()
     init_db()
     farmers = db.query(Farmer).all()
-    return {"message": "Reset completed", "total_farmers": len(farmers)}
+    return {"message": "Seed farmers re-populated successfully", "count": len(farmers), "farmers": [f.name for f in farmers]}

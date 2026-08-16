@@ -42,14 +42,10 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
 develop-eggs/
-dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
 parts/
 sdist/
 var/
@@ -76,15 +72,16 @@ node_modules/
 frontend/node_modules/
 .next/
 frontend/.next/
-out/
 frontend/out/
-build/
-frontend/build/
 
 # Next.js bundle analysis & telemetry
 .next/cache/
 *.tsbuildinfo
 next-env.d.ts.bak
+
+# Preserve application source directories
+!frontend/src/lib/**
+!frontend/src/**
 
 # Logs
 logs

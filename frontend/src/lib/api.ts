@@ -9,6 +9,8 @@ import {
 } from './types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api';
+// Extract base backend host without '/api' for media / audio streams
+const BACKEND_HOST = API_BASE_URL.replace(/\/api\/?$/, '');
 
 async function fetchJSON<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -35,16 +37,15 @@ async function fetchJSON<T>(endpoint: string, options?: RequestInit): Promise<T>
 
 export const api = {
   // Health
-  getHealth: () => fetchJSON<{ status: string; mock_telephony: boolean; gemini_active: boolean; twilio_active: boolean }>('/health'),
+  getHealth: () => fetchJSON<{ status: string; mock_telephony: boolean; scheduler_running?: boolean; gemini_active?: boolean }>('/health'),
 
   // Farmers
-  getFarmers: (district?: string) => 
-    fetchJSON<Farmer[]>(`/farmers${district ? `?district=${encodeURIComponent(district)}` : ''}`),
+  getFarmers: () => fetchJSON<Farmer[]>('/farmers'),
   
-  createFarmer: (farmer: Partial<Farmer>) =>
+  createFarmer: (data: Partial<Farmer>) =>
     fetchJSON<Farmer>('/farmers', {
       method: 'POST',
-      body: JSON.stringify(farmer),
+      body: JSON.stringify(data),
     }),
 
   updateFarmer: (id: number, data: Partial<Farmer>) =>
@@ -53,29 +54,33 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  deleteFarmer: (id: number) =>
-    fetchJSON<{ message: string }>(`/farmers/${id}`, {
-      method: 'DELETE',
-    }),
-
   resetSeedFarmers: () =>
-    fetchJSON<{ message: string; total_farmers: number }>('/farmers/reset-seeds', {
+    fetchJSON<{ message: string; count: number }>('/farmers/seed/reset', {
       method: 'POST',
     }),
 
-  // Weather & Disaster Simulation
+  // Weather & Hazards
   getDistricts: () => fetchJSON<DistrictHazard[]>('/weather/districts'),
 
   getLiveWeather: (district: string) =>
-    fetchJSON<LiveWeather>(`/weather/current/${encodeURIComponent(district)}`),
+    fetchJSON<LiveWeather>(`/weather/current/${district}`),
 
-  simulateDisaster: (data: { district: string; wind_speed_kmh: number; rainfall_mm: number; event_type: string }) =>
-    fetchJSON<{ simulation: SimulationResult; affected_farmers_count: number; affected_farmers: Farmer[] }>('/weather/simulate', {
+  simulateDisaster: (payload: {
+    district: string;
+    wind_speed_kmh: number;
+    rainfall_mm: number;
+    event_type: string;
+  }) =>
+    fetchJSON<{
+      simulation: SimulationResult;
+      affected_farmers_count: number;
+      affected_farmers: Farmer[];
+    }>('/weather/simulate', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     }),
 
-  // AI Agronomist Advisory
+  // Advisories
   generateAdvisory: (payload: {
     farmer_id?: number;
     farmer_name?: string;
@@ -83,7 +88,7 @@ export const api = {
     crop_type: string;
     crop_stage: string;
     soil_type: string;
-    language: string;
+    language?: string;
     event_type: string;
     wind_speed_kmh: number;
     rainfall_mm: number;
@@ -120,11 +125,11 @@ export const api = {
   // Analytics Stats
   getStats: () => fetchJSON<DashboardStats>('/stats'),
 
-  // Full Audio URL Helper
+  // Full Audio URL Helper (Dynamically routes to BACKEND_HOST in production)
   getAudioStreamUrl: (filenameOrPath: string) => {
     if (!filenameOrPath) return '';
     if (filenameOrPath.startsWith('http')) return filenameOrPath;
-    if (filenameOrPath.startsWith('/api')) return `http://127.0.0.1:8000${filenameOrPath}`;
-    return `http://127.0.0.1:8000/api/audio/stream/${filenameOrPath}`;
+    if (filenameOrPath.startsWith('/api')) return `${BACKEND_HOST}${filenameOrPath}`;
+    return `${BACKEND_HOST}/api/audio/stream/${filenameOrPath}`;
   }
 };
